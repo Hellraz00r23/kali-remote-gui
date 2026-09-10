@@ -1,6 +1,8 @@
 // Main types for Kali Remote GUI
 import type { Dispatch } from 'react';
 
+export type ConnectionMode = 'usb' | 'tailscale';
+
 export interface SSHHost {
   id: string;
   name: string;
@@ -13,6 +15,7 @@ export interface SSHHost {
   privateKey?: string;
   authToken?: string;
   isDefault?: boolean;
+  connectionMode?: ConnectionMode;
 }
 
 export interface SSHConfig {
@@ -22,6 +25,7 @@ export interface SSHConfig {
   username: string;
   password?: string;
   authToken?: string;
+  connectionMode?: ConnectionMode;
 }
 
 export interface CommandEntry {

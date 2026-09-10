@@ -1,11 +1,26 @@
 import { SSHConfig, SSHHost } from '../types';
 
+export const USB_DEFAULTS = {
+  host: '192.168.42.1',
+  port: 22,
+  wsPort: 8765,
+  username: 'kali',
+};
+
+export const TAILSCALE_DEFAULTS = {
+  host: '',
+  port: 22,
+  wsPort: 8765,
+  username: 'kali',
+};
+
 export const DEFAULT_SSH_CONFIG: SSHConfig = {
   host: '',
   port: 22,
   wsPort: 8765,
   username: '',
   password: '',
+  connectionMode: 'usb',
 };
 
 export const DEFAULT_HOST: Omit<SSHHost, 'id'> = {
@@ -17,6 +32,7 @@ export const DEFAULT_HOST: Omit<SSHHost, 'id'> = {
   password: '',
   useKeyAuth: false,
   isDefault: true,
+  connectionMode: 'usb',
 };
 
 export const APP_CONFIG = {
@@ -30,9 +46,10 @@ export const APP_CONFIG = {
 };
 
 export const STORAGE_KEYS = {
-  HOSTS: '@kali_remote_hosts',
-  CURRENT_HOST: '@kali_remote_current_host',
-  HISTORY: '@kali_remote_history',
-  CUSTOM_TOOLS: '@kali_remote_custom_tools',
-  SETTINGS: '@kali_remote_settings',
+  HOSTS: '@mobilekali_hosts',
+  CURRENT_HOST: '@mobilekali_current_host',
+  HISTORY: '@mobilekali_history',
+  CUSTOM_TOOLS: '@mobilekali_custom_tools',
+  SETTINGS: '@mobilekali_settings',
+  CONNECTION_MODE: '@mobilekali_connection_mode',
 };

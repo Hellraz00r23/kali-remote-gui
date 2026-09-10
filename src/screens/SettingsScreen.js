@@ -6,12 +6,14 @@ import {
 import {colors, fontSizes, spacing, radius} from '../theme';
 import {useApp} from '../context/AppContext';
 import {getTotalToolsCount} from '../data';
+import {USB_DEFAULTS, TAILSCALE_DEFAULTS} from '../config/default';
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.0.0';
 const TOTAL_TOOLS = getTotalToolsCount();
 
 export default function SettingsScreen({navigation}) {
   const {connect, disconnect, saveConfig, executeCommand, isConnected, isConnecting, connectionError, sshConfig, customTools} = useApp();
+  const [connectionMode, setConnectionMode] = useState('usb');
   const [host, setHost] = useState('');
   const [port, setPort] = useState('22');
   const [username, setUsername] = useState('');
@@ -25,8 +27,25 @@ export default function SettingsScreen({navigation}) {
       setPort(String(sshConfig.port || 22));
       setUsername(sshConfig.username || '');
       setPassword(sshConfig.password || '');
+      if (sshConfig.connectionMode) {
+        setConnectionMode(sshConfig.connectionMode);
+      }
     }
   }, [sshConfig]);
+
+  const switchMode = (mode) => {
+    setConnectionMode(mode);
+    if (mode === 'usb') {
+      setHost(USB_DEFAULTS.host);
+      setPort(String(USB_DEFAULTS.port));
+      setUsername(USB_DEFAULTS.username);
+    } else {
+      setHost(TAILSCALE_DEFAULTS.host);
+      setPort(String(TAILSCALE_DEFAULTS.port));
+      setUsername(TAILSCALE_DEFAULTS.username);
+    }
+    setTestResult(null);
+  };
 
   const buildConfig = () => ({
     host: host.trim(),
@@ -34,6 +53,7 @@ export default function SettingsScreen({navigation}) {
     wsPort: 8765,
     username: username.trim(),
     password,
+    connectionMode,
   });
 
   const handleSave = async () => {
@@ -42,7 +62,7 @@ export default function SettingsScreen({navigation}) {
       return;
     }
     await saveConfig(buildConfig());
-    Alert.alert('Saved', 'SSH configuration saved.', [{text: 'OK'}]);
+    Alert.alert('Saved', `${connectionMode === 'usb' ? 'USB Ethernet' : 'Tailscale'} configuration saved.`, [{text: 'OK'}]);
   };
 
   const handleConnect = async () => {
@@ -64,7 +84,7 @@ export default function SettingsScreen({navigation}) {
 
   const handleTest = async () => {
     if (!host.trim()) {
-      setTestResult({status: 'error', message: '✗ Enter a host / IP address first.'});
+      setTestResult({status: 'error', message: 'Enter a host / IP address first.'});
       return;
     }
     setTestResult({status: 'testing', message: 'Testing connection...'});
@@ -72,9 +92,9 @@ export default function SettingsScreen({navigation}) {
       const ok = await connect(buildConfig());
       if (!ok) throw new Error('Connection failed');
       const output = await executeCommand('echo "OK:$(uname -n):$(whoami)"');
-      setTestResult({status: 'ok', message: `✓ Connected! ${output.trim()}`});
+      setTestResult({status: 'ok', message: `Connected! ${output.trim()}`});
     } catch (e) {
-      setTestResult({status: 'error', message: `✗ ${e.message}`});
+      setTestResult({status: 'error', message: `${e.message}`});
     }
   };
 
@@ -85,12 +105,14 @@ export default function SettingsScreen({navigation}) {
     </View>
   );
 
+  const isTailscale = connectionMode === 'tailscale';
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>⚙️ SETTINGS</Text>
-        <Text style={styles.headerSub}>SSH Connection Configuration</Text>
+        <Text style={styles.headerTitle}>SETTINGS</Text>
+        <Text style={styles.headerSub}>Connection Configuration</Text>
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -112,7 +134,43 @@ export default function SettingsScreen({navigation}) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔌 SSH CONNECTION</Text>
+          <Text style={styles.sectionTitle}>CONNECTION MODE</Text>
+          <View style={styles.modeToggle}>
+            <TouchableOpacity
+              style={[styles.modeBtn, !isTailscale && styles.modeBtnActive]}
+              onPress={() => switchMode('usb')}>
+              <Text style={[styles.modeBtnText, !isTailscale && styles.modeBtnTextActive]}>
+                USB Ethernet
+              </Text>
+              <Text style={[styles.modeBtnSub, !isTailscale && styles.modeBtnSubActive]}>
+                192.168.42.1
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeBtn, isTailscale && styles.modeBtnActive]}
+              onPress={() => switchMode('tailscale')}>
+              <Text style={[styles.modeBtnText, isTailscale && styles.modeBtnTextActive]}>
+                Tailscale
+              </Text>
+              <Text style={[styles.modeBtnSub, isTailscale && styles.modeBtnSubActive]}>
+                Remote VPN
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {isTailscale ? 'TAILSCALE CONNECTION' : 'SSH CONNECTION'}
+          </Text>
+
+          {isTailscale && (
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoBannerText}>
+                Enter your Kali machine's Tailscale IP address. The bridge must be running with KALI_BRIDGE_TAILSCALE=true
+              </Text>
+            </View>
+          )}
 
           <View style={styles.fieldGroup}>
             <View style={styles.field}>
@@ -121,11 +179,11 @@ export default function SettingsScreen({navigation}) {
                 style={styles.input}
                 value={host}
                 onChangeText={setHost}
-                placeholder="192.168.x.x"
+                placeholder={isTailscale ? "100.x.x.x" : "192.168.42.1"}
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType="numeric"
+                keyboardType={isTailscale ? "default" : "numeric"}
               />
             </View>
 
@@ -169,7 +227,7 @@ export default function SettingsScreen({navigation}) {
                 autoCorrect={false}
               />
               <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPass(!showPass)}>
-                <Text style={styles.eyeIcon}>{showPass ? '🙈' : '👁️'}</Text>
+                <Text style={styles.eyeIcon}>{showPass ? '***' : '...'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -190,11 +248,11 @@ export default function SettingsScreen({navigation}) {
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity style={styles.testBtn} onPress={handleTest}>
-            <Text style={styles.testBtnText}>🧪 Test Connection</Text>
+            <Text style={styles.testBtnText}>Test Connection</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>💾 Save Configuration</Text>
+            <Text style={styles.saveBtnText}>Save Configuration</Text>
           </TouchableOpacity>
 
           {!isConnected ? (
@@ -206,22 +264,23 @@ export default function SettingsScreen({navigation}) {
                 <ActivityIndicator size="small" color={colors.background} />
               ) : null}
               <Text style={styles.connectBtnText}>
-                {isConnecting ? 'Connecting...' : '► Connect SSH'}
+                {isConnecting ? 'Connecting...' : 'Connect'}
               </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.disconnectBtn} onPress={handleDisconnect}>
-              <Text style={styles.disconnectBtnText}>■ Disconnect</Text>
+              <Text style={styles.disconnectBtnText}>Disconnect</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ℹ️ ABOUT</Text>
+          <Text style={styles.sectionTitle}>ABOUT</Text>
           <View style={styles.infoCard}>
             <InfoRow label="Version" value={`v${APP_VERSION}`} />
             <InfoRow label="Tools" value={`${TOTAL_TOOLS + (customTools?.length || 0)}`} valueColor={colors.primary} />
             <InfoRow label="Categories" value="12" valueColor={colors.secondary} />
+            <InfoRow label="Mode" value={isTailscale ? 'Tailscale' : 'USB Ethernet'} valueColor={isTailscale ? colors.secondary : colors.primary} />
             <InfoRow label="Status" value={isConnected ? 'Connected' : 'Disconnected'} valueColor={isConnected ? colors.primary : colors.error} />
           </View>
         </View>
@@ -262,10 +321,57 @@ const styles = StyleSheet.create({
   statusError: {color: colors.error, fontSize: fontSizes.xs, marginTop: 2},
   section: {marginHorizontal: spacing.lg, marginTop: spacing.xl},
   sectionTitle: {color: colors.textDim, fontSize: fontSizes.xs, fontWeight: '700', letterSpacing: 2, marginBottom: spacing.md},
+  modeToggle: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  modeBtn: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  modeBtnActive: {
+    backgroundColor: colors.primary + '15',
+    borderColor: colors.primary + '55',
+  },
+  modeBtnText: {
+    color: colors.textDim,
+    fontSize: fontSizes.sm,
+    fontWeight: '700',
+  },
+  modeBtnTextActive: {
+    color: colors.primary,
+  },
+  modeBtnSub: {
+    color: colors.textMuted,
+    fontSize: fontSizes.xs,
+    marginTop: 2,
+    fontFamily: 'monospace',
+  },
+  modeBtnSubActive: {
+    color: colors.primaryDim,
+  },
+  infoBanner: {
+    backgroundColor: colors.secondary + '10',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.secondary + '33',
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  infoBannerText: {
+    color: colors.textDim,
+    fontSize: fontSizes.xs,
+    lineHeight: 18,
+  },
   fieldGroup: {flexDirection: 'row', gap: spacing.md},
   field: {flex: 1, marginBottom: spacing.md},
   fieldLabel: {color: colors.textDim, fontSize: fontSizes.xs, fontWeight: '600', marginBottom: spacing.xs, letterSpacing: 0.5},
-  fieldHint: {color: colors.textMuted, fontSize: fontSizes.xs, marginTop: spacing.xs},
   input: {
     backgroundColor: colors.card,
     borderRadius: radius.md,
@@ -279,7 +385,7 @@ const styles = StyleSheet.create({
   },
   passwordRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   eyeBtn: {padding: spacing.sm},
-  eyeIcon: {fontSize: 20},
+  eyeIcon: {fontSize: 14, color: colors.textDim},
   testResult: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -353,12 +459,4 @@ const styles = StyleSheet.create({
   },
   infoLabel: {color: colors.textDim, fontSize: fontSizes.sm},
   infoValue: {fontSize: fontSizes.sm, fontWeight: '600', fontFamily: 'monospace'},
-  warningCard: {
-    backgroundColor: colors.warning + '10',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.warning + '44',
-    padding: spacing.lg,
-  },
-  warningText: {color: colors.textDim, fontSize: fontSizes.xs, lineHeight: 18},
 });

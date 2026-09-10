@@ -6,8 +6,13 @@
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">100.80.242.50</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.42.1</domain>
+    </domain-config>
+    <!-- Tailscale CGNAT range (100.64.0.0/10) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">100.64.0.0</domain>
+        <domain includeSubdomains="true">100.127.255.255</domain>
     </domain-config>
 </network-security-config>

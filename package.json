@@ -1,25 +1,21 @@
 {
-  "name": "kali-remote-gui",
-  "version": "1.3.0",
-  "description": "Professional mobile interface for Kali Linux penetration testing tools",
+  "name": "mobile-kali",
+  "version": "1.0.0",
+  "description": "Professional mobile interface for Kali Linux on Raspberry Pi",
   "private": true,
-  "author": "Kali Remote GUI Contributors",
+  "author": "Hellraz00r23",
   "license": "MIT",
-  "homepage": "https://github.com/notconnector/kali-remote-gui",
   "repository": {
     "type": "git",
-    "url": "https://github.com/notconnector/kali-remote-gui.git"
-  },
-  "bugs": {
-    "url": "https://github.com/notconnector/kali-remote-gui/issues"
+    "url": "https://github.com/Hellraz00r23/mobile-kali.git"
   },
   "keywords": [
     "kali-linux",
+    "raspberry-pi",
     "penetration-testing",
     "react-native",
     "android",
-    "security-tools",
-    "websocket"
+    "tailscale"
   ],
   "scripts": {
     "android": "react-native run-android",

@@ -71,7 +71,7 @@ function MainTabs() {
         tabBarShowLabel: false,
       }}>
       <Tab.Screen
-        name="NarzędziaTab"
+        name="ToolsTab"
         component={DashboardStack}
         options={{
           tabBarIcon: ({focused}) => <TabIcon emoji="💀" label="TOOLS" focused={focused} />,
@@ -85,14 +85,14 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="HistoriaTab"
+        name="HistoryTab"
         component={HistoryScreen}
         options={{
           tabBarIcon: ({focused}) => <TabIcon emoji="📜" label="HISTORY" focused={focused} />,
         }}
       />
       <Tab.Screen
-        name="UstawieniaTab"
+        name="SettingsTab"
         component={SettingsScreen}
         options={{
           tabBarIcon: ({focused}) => <TabIcon emoji="⚙️" label="SETTINGS" focused={focused} />,

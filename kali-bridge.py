@@ -5,7 +5,8 @@ Kali Remote GUI Bridge - Secure WebSocket Server
 Provides remote command execution for Kali Linux via WebSocket.
 
 Usage:
-    python3 kali-bridge.py
+    python3 kali-bridge.py                    # USB Ethernet mode (localhost only)
+    KALI_BRIDGE_TAILSCALE=true python3 kali-bridge.py  # Tailscale mode (remote access)
 
 Environment Variables:
     KALI_BRIDGE_HOST        - Bind host (default: 127.0.0.1)
@@ -14,10 +15,11 @@ Environment Variables:
     KALI_BRIDGE_RATE_LIMIT  - Max commands per minute (default: 30)
     KALI_BRIDGE_LOG_LEVEL   - DEBUG/INFO/WARNING/ERROR (default: INFO)
     KALI_BRIDGE_MAX_PAYLOAD - Max message size in bytes (default: 1048576)
+    KALI_BRIDGE_TAILSCALE   - Enable Tailscale mode (default: false)
 
 Security Notes:
     - Default bind is localhost (127.0.0.1) for security
-    - Use SSH tunnel or VPN for remote access
+    - Tailscale mode binds to 0.0.0.0 for remote access via VPN
     - Set AUTH_TOKEN for production use
     - Never expose to public internet without authentication
 
@@ -52,6 +54,9 @@ AUTH_TOKEN = os.environ.get("KALI_BRIDGE_AUTH_TOKEN", "")
 RATE_LIMIT = int(os.environ.get("KALI_BRIDGE_RATE_LIMIT", "30"))  # Commands per minute
 MAX_PAYLOAD = int(os.environ.get("KALI_BRIDGE_MAX_PAYLOAD", "1048576"))  # 1MB
 
+# Tailscale mode: when enabled, binds to 0.0.0.0 and discovers Tailscale IPs
+TAILSCALE_MODE = os.environ.get("KALI_BRIDGE_TAILSCALE", "false").lower() in ("true", "1", "yes")
+
 # Setup logging
 LOG_LEVEL = os.environ.get("KALI_BRIDGE_LOG_LEVEL", "INFO")
 logging.basicConfig(
@@ -76,6 +81,22 @@ MAX_SHELLS_PER_CLIENT = 3
 SHELL_INACTIVE_TIMEOUT = 3600  # 60 minutes in seconds
 # Note: rbash provides limited restrictions. For stronger isolation, consider firejail
 RESTRICTED_SHELL_COMMAND = '/bin/rbash'  # Restricted shell (partial protection)
+
+
+def get_tailscale_ips():
+    """Discover Tailscale IPs via 'tailscale ip' or 'tailscale status'."""
+    ips = []
+    try:
+        import subprocess
+        result = subprocess.run(['tailscale', 'ip', '-4'], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            for line in result.stdout.strip().split('\n'):
+                line = line.strip()
+                if line:
+                    ips.append(line)
+    except Exception:
+        pass
+    return ips
 
 # Command whitelist for security
 ALLOWED_COMMANDS: List[str] = [
@@ -655,6 +676,20 @@ async def shell_timeout_monitor():
 
 async def main():
     """Main entry point."""
+    global HOST
+
+    # Tailscale mode: override host to bind all interfaces
+    if TAILSCALE_MODE:
+        HOST = "0.0.0.0"
+        logger.info("Tailscale mode enabled - binding to all interfaces (0.0.0.0)")
+        tailscale_ips = get_tailscale_ips()
+        if tailscale_ips:
+            logger.info(f"Tailscale IPs: {', '.join(tailscale_ips)}")
+            logger.info(f"Connect from app using: {tailscale_ips[0]}:{PORT}")
+        else:
+            logger.warning("No Tailscale IPs found - is tailscale running?")
+        logger.info("Ensure tailscale is running on this machine for remote access")
+
     # Security warnings
     if HOST == "0.0.0.0":
         logger.warning("=" * 60)
@@ -696,6 +731,10 @@ async def main():
     logger.info(f"Kali Remote GUI Bridge starting on ws://{HOST}:{PORT}")
     logger.info(f"Rate limit: {RATE_LIMIT} commands/minute per client")
     logger.info(f"Max payload: {MAX_PAYLOAD} bytes")
+    if TAILSCALE_MODE:
+        logger.info("Mode: Tailscale (remote access via Tailscale VPN)")
+    else:
+        logger.info("Mode: Local (USB Ethernet - 127.0.0.1 only)")
     logger.info("Press Ctrl+C to stop")
 
     # Start WebSocket server
